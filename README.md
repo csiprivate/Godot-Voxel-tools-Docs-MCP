@@ -18,8 +18,8 @@ Lokaler Mirror und MCP-Server fuer die Voxel-Tools-Dokumentation.
 ```powershell
 cd E:\Repos\voxel-tools-docs-mcp
 npm install
+npm run setup
 npm run build
-powershell -ExecutionPolicy Bypass -File scripts/update-voxel-docs.ps1
 ```
 
 ### Linux / macOS
@@ -27,9 +27,11 @@ powershell -ExecutionPolicy Bypass -File scripts/update-voxel-docs.ps1
 ```bash
 cd /path/to/voxel-tools-docs-mcp
 npm install
+npm run setup
 npm run build
-bash scripts/update-voxel-docs.sh
 ```
+
+`npm run setup` lädt den lokalen Mirror automatisch. Die Plattform-Skripte bleiben für manuelle Refreshes verfügbar.
 
 ## Codex-MCP-Eintrag
 

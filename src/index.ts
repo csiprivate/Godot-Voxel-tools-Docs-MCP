@@ -45,7 +45,7 @@ function assertRepoReady(): void {
   if (!existsSync(repoRoot)) {
     throw new McpError(
       ErrorCode.InternalError,
-      `Voxel-Tools-Repo nicht gefunden: ${repoRoot}. Führe scripts/update-voxel-docs.ps1 oder scripts/update-voxel-docs.sh aus.`
+      `Voxel-Tools-Repo nicht gefunden: ${repoRoot}. Führe npm run setup aus oder nutze scripts/update-voxel-docs.ps1 beziehungsweise scripts/update-voxel-docs.sh.`
     );
   }
 }
