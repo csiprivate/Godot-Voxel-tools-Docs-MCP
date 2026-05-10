@@ -3,9 +3,12 @@
 import { fileURLToPath } from "url";
 import { basename, dirname, extname, join, relative, resolve, sep } from "path";
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
+import { createServer } from "http";
+import { randomUUID } from "crypto";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -526,6 +529,52 @@ class VoxelToolsDocsServer {
   }
 
   async start(): Promise<void> {
+    if (process.env.MCP_TRANSPORT === "http") {
+      const host = process.env.MCP_HTTP_HOST ?? "127.0.0.1";
+      const port = Number.parseInt(process.env.MCP_HTTP_PORT ?? "8013", 10);
+      const transports = new Map<string, StreamableHTTPServerTransport>();
+      const httpServer = createServer(async (req, res) => {
+        if (req.url === "/health") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ status: "healthy", service: "voxel-tools-docs-mcp" }));
+          return;
+        }
+        if (req.url?.startsWith("/mcp")) {
+          const sessionHeader = req.headers["mcp-session-id"];
+          const sessionId = Array.isArray(sessionHeader) ? sessionHeader[0] : sessionHeader;
+          let transport = sessionId ? transports.get(sessionId) : undefined;
+          const isNewSession = !sessionId && req.method === "POST";
+          if (!transport && isNewSession) {
+            const sessionServer = new VoxelToolsDocsServer();
+            transport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: randomUUID
+            });
+            transport.onclose = () => {
+              const closedSessionId = transport?.sessionId;
+              if (closedSessionId) {
+                transports.delete(closedSessionId);
+              }
+            };
+            await sessionServer.server.connect(transport);
+          }
+          if (!transport) {
+            res.writeHead(400).end("Missing or unknown mcp-session-id");
+            return;
+          }
+          await transport.handleRequest(req, res);
+          if (isNewSession && transport.sessionId) {
+            transports.set(transport.sessionId, transport);
+          }
+          return;
+        }
+        res.writeHead(404).end("Not found");
+      });
+      httpServer.listen(port, host, () => {
+        console.error(`[voxel-tools-docs-mcp] HTTP server listening on http://${host}:${port}/mcp/`);
+      });
+      return;
+    }
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
   }
